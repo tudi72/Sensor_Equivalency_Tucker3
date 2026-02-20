@@ -1,5 +1,5 @@
 from colorama import Fore 
-from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.base import TransformerMixin
 from pathlib import Path 
 from scipy import linalg
 from tqdm import tqdm 
@@ -13,9 +13,9 @@ FILE = os.path.basename(__file__)
 TAG = FILE[:-3]
 
 
-class Tucker3(TransformerMixin,BaseEstimator):
-    def __init__(self,LowRankAprox=np.array([2,2,2]),maxIter=200,tolCriteria=1e-5,ErrorScaled=True):
-        self.LowRankApprox = self.LowRankApprox 
+class Tucker3(TransformerMixin):
+    def __init__(self,LowRankApprox=np.array([2,2,2]),maxIter=200,tolCriteria=1e-5,ErrorScaled=True):
+        self.LowRankApprox = LowRankApprox 
         self.maxIter = maxIter 
         self.numIter = 0 
         self.tolCriteria = tolCriteria
@@ -26,8 +26,9 @@ class Tucker3(TransformerMixin,BaseEstimator):
         self.coreTensor = None  # Nvar x 1 
 
         self.DModXTraining = None # Nbat x 1 
-        self.TSQRTraining = None # Nbat x 1 
+        self.ning = None # Nbat x 1 
 
+        self.scaling = None
         self.ErrorScaled = ErrorScaled 
 
     
@@ -56,7 +57,7 @@ class Tucker3(TransformerMixin,BaseEstimator):
             Brand = np.random.rand(U.shape[0],Rank[1] - U.shape[1])
             B       = np.concatenate((B,Brand), axis=0)
         
-        X_3         = np.rehsape(np.transopose(input, (2,0,1)), (timePoints, Nbat * Nvar), order='F')
+        X_3         = np.reshape(np.transpose(input, (2,0,1)), (timePoints, Nbat * Nvar), order='F')
         U, _, _     = linalg.svd(X_3,full_matrices=False) 
 
         if Rank[2] <= U.shape[1]: 
@@ -80,7 +81,7 @@ class Tucker3(TransformerMixin,BaseEstimator):
         rel_error = []
         numIter = 0 
 
-        x_vec = np.reshape(X_1,(Nbat, Nvar * timePoints,1),order='F')
+        x_vec = np.reshape(X_1,(Nbat * Nvar * timePoints,1),order='F')
 
         # Train loop 
         while(convTest > self.tolCriteria) and (numIter < self.maxIter):
@@ -130,6 +131,7 @@ class Tucker3(TransformerMixin,BaseEstimator):
             self.timeLoadings   = C # timePoints x R3 
             self.coreTensor     = GT # R1 X R2 X R3   
             self.numIter        = numIter 
+            numIter             +=1 
             
     def fit(self,input,verbose=True): 
 
@@ -139,7 +141,6 @@ class Tucker3(TransformerMixin,BaseEstimator):
 
         if verbose: 
             print(TAG,"fit",f"Successfully trained Tucker3 for {self.numIter} iterations...")
-        
         if self.ErrorScaled: 
             TRess       = self.calcOOMD(input,metric="Res") 
             Ress_2      = np.reshape(np.transpose(TRess,(1,0,2)), (Nvar, Nbat * timePoints), order='F') 
@@ -157,7 +158,7 @@ class Tucker3(TransformerMixin,BaseEstimator):
 
                 self.train(XT_scaled,verbose=verbose) 
                 TRess       = self.calcOOMD(XT_scaled,metric='Res')
-                Ress_2      = np.reshape(np.tranpose(TRess,(1,0,2)), (Nvar, Nbat * timePoints),order='F')
+                Ress_2      = np.reshape(np.transpose(TRess,(1,0,2)), (Nvar, Nbat * timePoints),order='F')
 
                 if numIter > 2: 
                     convTest    = np.linalg.norm(std_Ress - np.ones((Nvar, 1))) 
@@ -168,9 +169,10 @@ class Tucker3(TransformerMixin,BaseEstimator):
                 numIter +=1 
 
             self.scaling = cum_factor 
+        
 
         self.DModXTraining = self.calcOOMD(input,metric="DModX")
-        self.TSQRTraining  = self.calcIMD(input,metric="HotellingT2") 
+        self.ning  = self.calcIMD(input=input,metric="HotellingT2") 
 
         return self 
 
@@ -206,11 +208,16 @@ class Tucker3(TransformerMixin,BaseEstimator):
 
         return scores, XT_scaled, XT_est 
 
-    def fit_trransform(self,input,verbose=True): 
+    def fit_transform(self,input,verbose=True): 
         if self.varLoadings is None: 
             self.fit(input,verbose=verbose) 
             scores = self.fitScores.copy() 
-            return scores 
+            return {
+                'scores'        : scores,
+                'varLoadings'   : self.varLoadings,
+                'timeLoadings'  : self.timeLoadings,
+                'coreTensor'    : self.coreTensor
+            }         
         else: 
             raise ValueError("Model has already been fitted ...") 
     
@@ -219,8 +226,8 @@ class Tucker3(TransformerMixin,BaseEstimator):
         if self.varLoadings is None or self.timeLoadings is None: 
             raise ValueError("Model has not been fitted...") 
         
-        Nbat,Rank_1     = input.shape 
-        Rank            = self.LowRankAprox
+        Nbat,Rank_1     = scores.shape 
+        Rank            = self.LowRankApprox
         B               = self.varLoadings 
         C               = self.timeLoadings 
         GT              = self.coreTensor 
@@ -236,11 +243,11 @@ class Tucker3(TransformerMixin,BaseEstimator):
 
         outData         = scores @ G_1 @ kronCB.T 
         outData         = np.reshape(outData, (Nbat, Nvar, timePoints), order='F')
-
-        if self.ErrorScaled and scale == 'Data': 
+        
+        if self.ErrorScaled and scale == 'Data' and self.scaling is not None: 
             outDataT    = np.reshape(outData,(Nbat,Nvar,timePoints),order='F') 
             X_2         = np.reshape(np.transpose(outDataT, (1,0,2)), (Nvar,Nbat * timePoints),order='F') 
-            X_2         /= std_Ress[:, np.newaxis]
+            X_2         /= self.scaling[:, np.newaxis]
 
             XT_scaled   = np.transpose(np.reshape(np.transpose(X_2, (1,0)), (Nbat,timePoints,Nvar),order='F'), (0,2,1))
 
@@ -248,7 +255,7 @@ class Tucker3(TransformerMixin,BaseEstimator):
         
         return outData 
 
-    def calcIMD(self,scores,input,metric='HotellingT2'):
+    def calcIMD(self,scores=None,input=None,metric='HotellingT2'):
 
         if self.varLoadings is None: 
             raise ValueError("Model has not yet been fitted...") 
@@ -265,7 +272,7 @@ class Tucker3(TransformerMixin,BaseEstimator):
             
             elif (input is None) and (scores is not None): 
                 Nbat, Rank_1        = scores.shape 
-                Rank                = self.LowRankAprox  
+                Rank                = self.LowRankApprox  
                 if Rank_1 != Rank[0]: 
                     raise ValueError("Input scores have more columns latent variable than model was fitted...")
                 else: 
@@ -278,7 +285,69 @@ class Tucker3(TransformerMixin,BaseEstimator):
         return outT2
 
     def calcContribution(self,XT_scaled): 
-        pass 
+        GT      = self.coreTensor 
+        Rank    = self.LowRankApprox 
+        A       = self.fitScores 
+        B       = self.varLoadings 
+        C       = self.timeLoadings 
+        Nbat    = A.shape[0] 
+        Nvar    = B.shape[0]
+        timePoints = C.shape[0] 
+
+        X_1     = np.reshape(XT_scaled, (Nbat, Nvar * timePoints),order='F')
+        G_1     = np.reshape(GT, (Rank[0], Rank[1] * Rank[2]), order='F')
+        kronCB  = np.kron(C,B) 
+        regress_coef = G_1 @ kronCB.T 
+        A_est   = X_1 @ regress_coef.T @ linalg.pinv(regress_coef @ regress_coef.T)
+
+        cov_A   = np.cov(A.T) 
+        TSQR_cov    = A_est @ np.linalg.pinv(cov_A) @ A_est.T 
+        TSQR    = np.diagonal(TSQR_cov) 
+
+        time = int(X_1.shape[1] // Nvar) 
+        Nlaten  = int(A_est.shape[1])
+
+        T_X  = np.reshape(X_1, (Nbat, Nvar, time), order='F') 
+        T_uf    = np.reshape(regress_coef, (Nlaten,Nvar,time), order='F')
+        con_TSQR = np.zeros((TSQR.size,Nvar))
+        for j in range(Nvar):
+            X_1_var = T_X[:, j, :]
+            uf_var  = T_uf[:, j, :]
+            con_T_est = X_1_var @ uf_var.T @ linalg.pinv(regress_coef @ regress_coef.T)
+            con_TSQR_cov = A_est @ np.linalg.pinv(cov_A) @ con_T_est.T
+            con_TSQR[:, j] = np.diag(con_TSQR_cov) 
+        
+        Xnew_est = A_est @ G_1 @ kronCB.T 
+        E_1 = Xnew_est - X_1 
+        T_SPE_mat = E_1 @ E_1.T 
+
+        r,c = T_SPE_mat.shape 
+        if r> 1 and c > 1 :
+            T_SPE = np.diag(T_SPE_mat).reshape(1,-1)
+            T_SPE = T_SPE.flatten() 
+        else: 
+            T_SPE = T_SPE_mat.flatten() 
+        
+        # ===========
+        iSPE = E_1**2 
+        iSPE_batch = np.zeros((Nbat, Nvar))
+        ET = np.reshape(E_1,[Nbat, Nvar, timePoints],order='F') 
+        E_2 = np.reshape(np.transpose(ET,(1,0,2)), (Nvar, Nbat * timePoints),order='F')
+
+        for i in range(Nvar):
+            E_2[i,:] = E_2[i,:] * self.scaling[i]
+        ET_rescaled = np.transpose(np.reshape(np.transpose(E_2,(1,0)), (Nbat,timePoints,Nvar),order='F'),(0,2,1))
+        squared_sum     = np.sum(ET_rescaled**2,axis=2) 
+        relative_contr  = squared_sum / np.sum(squared_sum, axis=1, keepdims=True) 
+        iSPE_batch = pd.DataFrame(relative_contr) 
+
+        return {
+            'T_SPE'     : T_SPE,
+            'TSQR'      : TSQR,
+            'con_TSQR'  : con_TSQR, 
+            'iSPE'      : iSPE,
+            'iSPE_batch': relative_contr
+        }
 
     def calcOOMD(self,input,metric='Res'):
 
@@ -300,7 +369,7 @@ class Tucker3(TransformerMixin,BaseEstimator):
             transformDat            = input.copy() 
             Nbat,Nvar,timePoints    = input.shape 
             outOOMD                 = np.zeros((Nbat,1))
-            scores,_, _             = self.transform(transformDat) 
+            scores,scaledData, _    = self.transform(transformDat) 
             modeledData             = self.inverse_transform(scores,scale='Data') 
 
             scaledData_1            = np.reshape(scaledData, (Nbat, Nvar * timePoints),order='F')
@@ -316,7 +385,7 @@ class Tucker3(TransformerMixin,BaseEstimator):
         elif metric == 'DModX': 
             Nbat_fit, R_1           = self.fitScores.shape 
             Nbat, Nvar, timePoints  = input.shape 
-            outOOMD                 = self.calcOOMD(input,metrics='QRes') 
+            outOOMD                 = self.calcOOMD(input,metric='QRes') 
             A0                      = 1 
             X_1                     = np.reshape(input, (Nbat, Nvar * timePoints), order='F') 
             nanMask                 = np.isnan(X_1) 
