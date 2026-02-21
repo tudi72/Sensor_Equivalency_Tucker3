@@ -30,6 +30,7 @@ class Tucker3(TransformerMixin):
 
         self.scaling = None
         self.ErrorScaled = ErrorScaled 
+        self.TSQRTraining = None
 
     
     def train(self,input,verbose=True): 
@@ -169,10 +170,10 @@ class Tucker3(TransformerMixin):
                 numIter +=1 
 
             self.scaling = cum_factor 
-        
+
 
         self.DModXTraining = self.calcOOMD(input,metric="DModX")
-        self.ning  = self.calcIMD(input=input,metric="HotellingT2") 
+        self.TSQRTraining  = self.calcIMD(input=input,metric="HotellingT2") 
 
         return self 
 
@@ -244,7 +245,8 @@ class Tucker3(TransformerMixin):
         outData         = scores @ G_1 @ kronCB.T 
         outData         = np.reshape(outData, (Nbat, Nvar, timePoints), order='F')
         
-        if self.ErrorScaled and scale == 'Data' and self.scaling is not None: 
+        # TODO assumes that self.scaling is defined
+        if self.ErrorScaled and scale == 'Data':# and self.scaling is not None: 
             outDataT    = np.reshape(outData,(Nbat,Nvar,timePoints),order='F') 
             X_2         = np.reshape(np.transpose(outDataT, (1,0,2)), (Nvar,Nbat * timePoints),order='F') 
             X_2         /= self.scaling[:, np.newaxis]
@@ -360,9 +362,9 @@ class Tucker3(TransformerMixin):
         elif metric == 'Res': 
 
             transformDat            = input.copy() 
-            Nbat,Nvar,timePoints    = input.shape 
+            Nbat,Nvar,timePoints    = input.shape
             scores,scaledData, _    = self.transform(transformDat) 
-            modeledData             = self.inverse_transform(scores,scale='Data') 
+            modeledData             = self.inverse_transform(scores,scale='model') 
             outOOMD                 = scaledData - modeledData 
 
         elif metric == 'QRes': 
@@ -370,7 +372,7 @@ class Tucker3(TransformerMixin):
             Nbat,Nvar,timePoints    = input.shape 
             outOOMD                 = np.zeros((Nbat,1))
             scores,scaledData, _    = self.transform(transformDat) 
-            modeledData             = self.inverse_transform(scores,scale='Data') 
+            modeledData             = self.inverse_transform(scores,scale='model') 
 
             scaledData_1            = np.reshape(scaledData, (Nbat, Nvar * timePoints),order='F')
             modeledData_1           = np.reshape(modeledData, (Nbat, Nvar * timePoints), order='F')
