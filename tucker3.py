@@ -50,6 +50,7 @@ class Tucker3(TransformerMixin):
             
         X_2         = np.reshape(np.transpose(input, (1,0,2)), ((Nvar, Nbat * timePoints)),order='F')
         U,_,_       = linalg.svd(X_2,full_matrices=False)
+        
         if Rank[1] <= U.shape[1]:
             end = Rank[1]
             B   = U[:,0:end]
