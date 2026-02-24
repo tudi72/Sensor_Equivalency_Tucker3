@@ -11,7 +11,6 @@ matplotlib.use('Agg')   # non-interactive backend — required for Streamlit
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.dates as mdates
-import seaborn as sns
 import plotly.express as px
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
