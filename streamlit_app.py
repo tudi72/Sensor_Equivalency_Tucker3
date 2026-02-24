@@ -344,7 +344,13 @@ if "pipeline" not in st.session_state or load_btn:
     except FileNotFoundError:
         st.error(f"CSV not found at `{csv_path}`."); st.stop()
 
-p             = st.session_state["pipeline"]
+p = st.session_state["pipeline"]
+
+if p is None:
+    st.info("👆 Enter the CSV path in the sidebar and click **▶ Load / Reload data** to begin.")
+    st.stop()
+
+df            = p["df"]
 df            = p["df"]
 coverage      = p["coverage"]
 dates_cov     = p["dates_cov"]
