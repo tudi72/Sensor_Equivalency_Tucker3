@@ -789,7 +789,7 @@ np.savez("tucker_results.npz",
     axes[1].plot(B,'o-',lw=1.4,ms=5)
     axes[1].set_xticks(range(len(FEATURES))); axes[1].set_xticklabels(FEATURES,rotation=20,ha='right',fontsize=8)
     axes[1].set_ylabel('Var Loadings'); axes[1].grid(True,alpha=.3)
-    axes[2].plot(C[:48],'o-',lw=1,ms=3)
+    axes[2].plot(C,'o-',lw=1,ms=3)
     axes[2].set_ylabel('Time Loading (day 1)'); axes[2].set_xlabel('Slot'); axes[2].grid(True,alpha=.3)
     fig.suptitle('Tucker3 — Factor line plots', fontweight='bold', fontsize=13)
     plt.tight_layout()
