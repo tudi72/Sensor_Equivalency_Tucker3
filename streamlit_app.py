@@ -793,7 +793,7 @@ np.savez("tucker_results.npz",
         new_cols            = [f"con_TSQR_{f}" for f in FEATURES]
         for col, sid in zip([c1,c2],[s1,s2]):
             with col:
-                fig, ax = plt.subplots(2,1,figsize=(6,4))
+                fig, ax = plt.subplots(2,1,figsize=(12,4))
                 vals = df_out.loc[sid,new_cols]
                 sns.barplot(x=vals.index, y=vals.values, palette='viridis', ax=ax[0])
                 ax[0].set_xticklabels(ax[0].get_xticklabels(),rotation=40,ha='right',fontsize=8)
