@@ -421,14 +421,13 @@ if run_tucker_btn:
         HT2   = model.calcIMD(X_scaled).reshape(n_sensors, 1)
         DModX = model.calcOOMD(X_scaled).reshape(n_sensors, 1)
 
-        df_out       = pd.DataFrame(np.hstack((HT2, DModX)),
-                                    columns=["HT2","DModX"], index=reliable_sensors)
-        df_out['T_SPE'] = metrics['T_SPE']
-        df_out['TSQR']  = metrics['TSQR']
-        new_cols        = [f"con_TSQR_{f}" for f in FEATURES]
-        df_out[new_cols]= metrics['con_TSQR']
-        df_iSPE         = pd.DataFrame(metrics['iSPE_batch'],
-                                       columns=FEATURES, index=reliable_sensors)
+        df_out              = pd.DataFrame(np.hstack((HT2, DModX)),columns=["HT2","DModX"], index=reliable_sensors)
+        df_out['T_SPE']     = metrics['T_SPE']
+        df_out['TSQR']      = metrics['TSQR']
+        df_out['cluster']   = df_out.index.map(sensor_to_cluster).fillna(100)
+        new_cols            = [f"con_TSQR_{f}" for f in FEATURES]
+        df_out[new_cols]    = metrics['con_TSQR']
+        df_iSPE             = pd.DataFrame(metrics['iSPE_batch'],columns=FEATURES, index=reliable_sensors)
         for i in range(A.shape[1]):
             df_out[f'LV{i+1}'] = A[:, i]
 
