@@ -778,7 +778,14 @@ np.savez("tucker_results.npz",
             hover_name=df_out.index.str[-8:],
             title='Score space LV1×LV2×LV3 — coloured by DModX', height=520)
         fig3d.update_traces(marker=dict(line=dict(width=0.5,color='black')))
-        fig3d.update_layout(margin=dict(l=0,r=0,t=50,b=0))
+        fig3d.update_layout(
+            margin=dict(l=0, r=0, t=50, b=0),
+            scene=dict(
+                xaxis=dict(range=[-4, 4], title='LV1'),
+                yaxis=dict(range=[-4, 4], title='LV2'),
+                zaxis=dict(range=[-4, 4], title='LV3'),
+            )
+        )
         st.plotly_chart(fig3d, use_container_width=True)
 
     if df_out is not None:
