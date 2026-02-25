@@ -782,7 +782,6 @@ np.savez("tucker_results.npz",
         st.plotly_chart(fig3d, use_container_width=True)
 
     if df_out is not None:
-        new_cols            = [f"con_TSQR_{f}" for f in FEATURES]
         sec("Individual SPE contributions")
         s1 = st.selectbox("Sensor A", reliable_sensors, key='spe1',
                            format_func=lambda x: f"…{x[-8:]}")
@@ -790,14 +789,22 @@ np.savez("tucker_results.npz",
                            index=min(1,len(reliable_sensors)-1), key='spe2',
                            format_func=lambda x: f"…{x[-8:]}")
         c1, c2 = st.columns(2)
+
+        new_cols            = [f"con_TSQR_{f}" for f in FEATURES]
         for col, sid in zip([c1,c2],[s1,s2]):
             with col:
-                fig, ax = plt.subplots(figsize=(6,4))
+                fig, ax = plt.subplots(2,1,figsize=(6,4))
                 vals = df_out.loc[sid,new_cols]
-                sns.barplot(x=vals.index, y=vals.values, palette='viridis', ax=ax)
-                ax.set_xticklabels(ax.get_xticklabels(),rotation=40,ha='right',fontsize=8)
-                ax.set_title(f'T_SPE — …{sid[-8:]}', fontweight='bold')
-                ax.set_ylabel('Contribution')
+                sns.barplot(x=vals.index, y=vals.values, palette='viridis', ax=ax[0])
+                ax[0].set_xticklabels(ax.get_xticklabels(),rotation=40,ha='right',fontsize=8)
+                ax[0].set_title(f'T_SPE — …{sid[-8:]}', fontweight='bold')
+                ax[0].set_ylabel('Contribution')
+
+                vals = df_iSPE.loc[sid]
+                sns.barplot(x=vals.index, y=vals.values, palette='viridis', ax=ax[1])
+                ax[1].set_xticklabels(ax.get_xticklabels(),rotation=40,ha='right',fontsize=8)
+                ax[1].set_title(f'i_SPE — …{sid[-8:]}', fontweight='bold')
+                ax[1].set_ylabel('Error')
                 plt.tight_layout()
                 col.pyplot(fig)
                 plt.close(fig)
