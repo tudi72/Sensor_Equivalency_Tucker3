@@ -791,6 +791,17 @@ np.savez("tucker_results.npz",
         c1, c2 = st.columns(2)
 
         new_cols            = [f"con_TSQR_{f}" for f in FEATURES]
+       
+        t_vals = df_out.loc[[s1, s2], new_cols].values.flatten()
+        i_vals = df_iSPE.loc[[s1, s2]].values.flatten()
+
+        def lim(vals, pad=0.05):
+            lo, hi = vals.min(), vals.max()
+            p = (hi - lo) * pad
+            return (lo - p, hi + p)
+        t_lim = lim(t_vals)
+        i_lim = lim(i_vals)
+
         for col, sid in zip([c1,c2],[s1,s2]):
             with col:
                 fig, ax = plt.subplots(2,1,figsize=(6,8))
@@ -799,12 +810,13 @@ np.savez("tucker_results.npz",
                 ax[0].set_xticklabels(ax[0].get_xticklabels(),rotation=40,ha='right',fontsize=8)
                 ax[0].set_title(f'T_SPE — …{sid[-8:]}', fontweight='bold')
                 ax[0].set_ylabel('Contribution')
-
+                ax[0].set_ylim(t_lim)
                 vals = df_iSPE.loc[sid]
                 sns.barplot(x=vals.index, y=vals.values, palette='viridis', ax=ax[1])
                 ax[1].set_xticklabels(ax[1].get_xticklabels(),rotation=40,ha='right',fontsize=8)
                 ax[1].set_title(f'i_SPE — …{sid[-8:]}', fontweight='bold')
                 ax[1].set_ylabel('Error')
+                ax[1].set_ylim(i_lim)
                 plt.tight_layout()
                 col.pyplot(fig)
                 plt.close(fig)
