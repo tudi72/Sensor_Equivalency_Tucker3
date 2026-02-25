@@ -796,13 +796,13 @@ np.savez("tucker_results.npz",
                 fig, ax = plt.subplots(2,1,figsize=(6,4))
                 vals = df_out.loc[sid,new_cols]
                 sns.barplot(x=vals.index, y=vals.values, palette='viridis', ax=ax[0])
-                ax[0].set_xticklabels(ax.get_xticklabels(),rotation=40,ha='right',fontsize=8)
+                ax[0].set_xticklabels(ax[0].get_xticklabels(),rotation=40,ha='right',fontsize=8)
                 ax[0].set_title(f'T_SPE — …{sid[-8:]}', fontweight='bold')
                 ax[0].set_ylabel('Contribution')
 
                 vals = df_iSPE.loc[sid]
                 sns.barplot(x=vals.index, y=vals.values, palette='viridis', ax=ax[1])
-                ax[1].set_xticklabels(ax.get_xticklabels(),rotation=40,ha='right',fontsize=8)
+                ax[1].set_xticklabels(ax[1].get_xticklabels(),rotation=40,ha='right',fontsize=8)
                 ax[1].set_title(f'i_SPE — …{sid[-8:]}', fontweight='bold')
                 ax[1].set_ylabel('Error')
                 plt.tight_layout()
