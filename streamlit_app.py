@@ -154,9 +154,6 @@ html,body,[class*="css"]{ font-family:'IBM Plex Sans',sans-serif; }
 """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# HELPERS
-# ══════════════════════════════════════════════════════════════════════════════
 def sec(title):
     st.markdown(f'<div class="sec">{title}</div>', unsafe_allow_html=True)
 
@@ -172,53 +169,35 @@ def monday_vlines(ax, full_index):
         if ts.weekday() == 0 and ts.hour == 0 and ts.minute == 0:
             ax.axvline(ts, color='#1b4332', lw=1.3, ls='--', alpha=.7)
 
-# def ellipse_confidence(df, x_col='TSQR', y_col='DModX',
-#                        confidence=0.95, facecolor='none', edgecolor='darkred'):
-#     xy      = df[[x_col, y_col]].to_numpy()
-#     mu      = xy.mean(axis=0)
-#     cov     = np.cov(xy, rowvar=False)
-#     eigvals, eigvecs = np.linalg.eigh(cov)
-#     order   = eigvals.argsort()[::-1]
-#     eigvals = eigvals[order]; eigvecs = eigvecs[:, order]
-#     chi2_q  = chi2.ppf(confidence, df=2)
-#     width   = 2. * np.sqrt(eigvals[0] * chi2_q)
-#     height  = 2. * np.sqrt(eigvals[1] * chi2_q)
-#     angle   = np.degrees(np.arctan2(eigvecs[1, 0], eigvecs[0, 0]))
-#     ell     = mpatches.Ellipse(xy=mu, width=width, height=height, angle=angle,
-#                                facecolor=facecolor, edgecolor=edgecolor,
-#                                alpha=0.12, zorder=1, linewidth=1.)
-#     inv_cov = np.linalg.pinv(cov)
-#     diffs   = xy - mu
-#     d2      = np.einsum("ij,jk,ik->i", diffs, inv_cov, diffs)
-#     return ell, list(df.index.astype(str)[d2 > chi2_q])
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# DATA PIPELINE
-# ══════════════════════════════════════════════════════════════════════════════
 FEATURES = ['temperature', 'humidity', 'noise', '% occupancy']
 
 @st.cache_data(show_spinner="Loading & processing data …")
 def run_pipeline(csv_path: str):
-    df = pd.read_csv(csv_path, index_col='id')
+    df  = pd.read_csv(csv_path, index_col='id')
     df.rename(columns={
-        'objectid':'ID','sensor_eui':'sensor_ID','zeitpunkt':'timestamp',
-        'temperature':'temperature','humidity':'humidity',
-        'latitude':'latitude','longitude':'longitude',
-        'noise':'noise','sit':'% occupancy',
+                    'objectid'      : 'ID',
+                    'sensor_eui'    : 'sensor_ID',
+                    'zeitpunkt'     : 'timestamp',
+                    'temperature'   : 'temperature',
+                    'humidity'      : 'humidity',
+                    'latitude'      : 'latitude',
+                    'longitude'     : 'longitude',
+                    'noise'         : 'noise',
+                    'sit'           : '% occupancy',
     }, inplace=True)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y%m%d%H%M%S')
-    df = df.sort_values('timestamp')
-    df['date'] = df['timestamp'].dt.date
-    df['slot'] = df['timestamp'].dt.hour*2 + df['timestamp'].dt.minute//30
+    df              = df.sort_values('timestamp')
+    df['date']      = df['timestamp'].dt.date
+    df['slot']      = df['timestamp'].dt.hour*2 + df['timestamp'].dt.minute//30
 
-    coverage  = (df.groupby(['date','sensor_ID'])['slot']
-                   .count().unstack('sensor_ID').fillna(0))
-    dates_cov = pd.to_datetime(list(coverage.index))
+    coverage        = (df.groupby(['date','sensor_ID'])['slot'].count().unstack('sensor_ID').fillna(0))
+    dates_cov       = pd.to_datetime(list(coverage.index))
+    cov_arr,\
+    week_scores     = coverage.values, []
 
-    cov_arr, week_scores = coverage.values, []
     for i, d in enumerate(dates_cov):
-        if d.weekday() != 0 or i+7 > len(dates_cov): continue
+        if d.weekday() != 0 or i+7 > len(dates_cov): 
+            continue
         block        = cov_arr[i:i+7]
         completeness = (block/48).clip(0, 1)
         week_scores.append({
@@ -229,41 +208,35 @@ def run_pipeline(csv_path: str):
             'min_coverage' : round(completeness.min(),  3),
             'score'        : round(completeness.mean()*.5 + completeness.min()*.5, 3),
         })
-    weeks_df  = (pd.DataFrame(week_scores)
-                   .sort_values('score', ascending=False)
-                   .reset_index(drop=True))
-    best_start = pd.Timestamp(weeks_df.iloc[0]['start_date'])
+    weeks_df        = (pd.DataFrame(week_scores).sort_values('score', ascending=False).reset_index(drop=True))
+    best_start      = pd.Timestamp(weeks_df.iloc[0]['start_date'])
+    sensor_coords   = (df.groupby('sensor_ID')[['latitude','longitude']].mean().reset_index())
+    cs              = StandardScaler().fit_transform(sensor_coords[['latitude','longitude']].values)
+    sensor_coords['cluster_kmeans'] = (KMeans(n_clusters=2, random_state=42,init='k-means++', n_init='auto').fit_predict(cs))
+    sensor_to_cluster = dict(zip(sensor_coords['sensor_ID'],sensor_coords['cluster_kmeans']))
 
-    sensor_coords = (df.groupby('sensor_ID')[['latitude','longitude']]
-                       .mean().reset_index())
-    cs = StandardScaler().fit_transform(sensor_coords[['latitude','longitude']].values)
-    sensor_coords['cluster_kmeans'] = (KMeans(n_clusters=2, random_state=42,
-                                              init='k-means++', n_init='auto')
-                                        .fit_predict(cs))
-    sensor_to_cluster = dict(zip(sensor_coords['sensor_ID'],
-                                 sensor_coords['cluster_kmeans']))
-
-    return dict(df=df, coverage=coverage, dates_cov=dates_cov,
-                weeks_df=weeks_df, best_start=best_start,
-                sensor_coords=sensor_coords, sensor_to_cluster=sensor_to_cluster)
-
+    return dict(df              = df, 
+                coverage        = coverage, 
+                dates_cov       = dates_cov,
+                weeks_df        = weeks_df, 
+                best_start      = best_start,
+                sensor_coords   = sensor_coords, 
+                sensor_to_cluster=sensor_to_cluster)
 
 def build_week_data(df, week_start, missing_threshold=0.90):
-    week_end = week_start + pd.Timedelta(days=7)
-    wdf      = df[(df['timestamp'] >= week_start) & (df['timestamp'] < week_end)].copy()
-    wdf['day_idx']     = wdf['timestamp'].dt.date.apply(
-                             lambda d: (pd.Timestamp(d)-week_start).days)
-    wdf['slot_in_day'] = wdf['timestamp'].dt.hour*2 + wdf['timestamp'].dt.minute//30
-    wdf['global_slot'] = wdf['day_idx']*48 + wdf['slot_in_day']
+    week_end            = week_start + pd.Timedelta(days=7)
+    wdf                 = df[(df['timestamp'] >= week_start) & (df['timestamp'] < week_end)].copy()
+    wdf['day_idx']      = wdf['timestamp'].dt.date.apply(lambda d: (pd.Timestamp(d)-week_start).days)
+    wdf['slot_in_day']  = wdf['timestamp'].dt.hour*2 + wdf['timestamp'].dt.minute//30
+    wdf['global_slot']  = wdf['day_idx']*48 + wdf['slot_in_day']
 
-    n_slots    = 336
-    full_index = pd.date_range(start=week_start, periods=n_slots, freq='30min')
+    n_slots             = 336
+    full_index          = pd.date_range(start=week_start, periods=n_slots, freq='30min')
+    sensor_dfs          = {}
 
-    sensor_dfs = {}
     for sid in sorted(wdf['sensor_ID'].unique()):
-        s = (wdf[wdf['sensor_ID']==sid].groupby('global_slot')[FEATURES]
-               .mean().reindex(pd.RangeIndex(n_slots)))
-        s.index = full_index
+        s               = (wdf[wdf['sensor_ID']==sid].groupby('global_slot')[FEATURES].mean().reindex(pd.RangeIndex(n_slots)))
+        s.index         = full_index
         sensor_dfs[sid] = s
 
     dropped, reliable, miss_pct = [], [], {}
@@ -350,7 +323,6 @@ if p is None:
     st.info("👆 Enter the CSV path in the sidebar and click **▶ Load / Reload data** to begin.")
     st.stop()
 
-df            = p["df"]
 df            = p["df"]
 coverage      = p["coverage"]
 dates_cov     = p["dates_cov"]
@@ -484,8 +456,8 @@ kpi_row([
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
 tab_data, tab_map, tab_cov, tab_sig, tab_tucker, tab_diag = st.tabs([
-    "🗃️ Dataset", "🗺️ Sensor map", "📡 Coverage",
-    "📈 Signals",  "🔲 Tucker3",    "🎯 Diagnostic",
+    "Dataset", "Sensor map", "Coverage",
+    "Signals",  "Tucker3",    "Diagnostic",
 ])
 
 
@@ -537,13 +509,14 @@ with tab_map:
                           lambda s: 'Dropped' if s in dropped_sensors else 'Active')
 
     fig_map = px.scatter_map(
-        sc2, lat="latitude", lon="longitude", color="location",
-        color_discrete_map={"Vulkanplatz":"#2d6a4f","Münsterhof":"#457b9d"},
-        hover_name="label",
-        hover_data={"missing":":.1f","status":True,"latitude":":.5f","longitude":":.5f"},
-        size=[14]*len(sc2), zoom=14, height=480)
-    fig_map.update_layout(mapbox_style="open-street-map",
-                          margin=dict(l=0,r=0,t=40,b=0))
+        sc2, lat            = "latitude", 
+        lon                 = "longitude", 
+        color               = "location",
+        color_discrete_map  = {"Vulkanplatz":"#2d6a4f","Münsterhof":"#457b9d"},
+        hover_name          = "label",
+        hover_data          = {"missing":":.1f","status":True,"latitude":":.5f","longitude":":.5f"},
+        size                = [14]*len(sc2), zoom=14, height=480)
+    fig_map.update_layout(mapbox_style="open-street-map",margin=dict(l=0,r=0,t=40,b=0))
     st.plotly_chart(fig_map, use_container_width=True)
 
     cl, ct = st.columns([1,2])
