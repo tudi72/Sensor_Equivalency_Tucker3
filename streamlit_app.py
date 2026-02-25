@@ -781,7 +781,7 @@ np.savez("tucker_results.npz",
         fig3d.update_layout(margin=dict(l=0,r=0,t=50,b=0))
         st.plotly_chart(fig3d, use_container_width=True)
 
-    if df_iSPE is not None:
+    if df_out is not None:
         sec("Individual SPE contributions")
         s1 = st.selectbox("Sensor A", reliable_sensors, key='spe1',
                            format_func=lambda x: f"…{x[-8:]}")
@@ -792,10 +792,10 @@ np.savez("tucker_results.npz",
         for col, sid in zip([c1,c2],[s1,s2]):
             with col:
                 fig, ax = plt.subplots(figsize=(6,4))
-                vals = df_iSPE.loc[sid]
+                vals = df_out.loc[sid,new_cols]
                 sns.barplot(x=vals.index, y=vals.values, palette='viridis', ax=ax)
                 ax.set_xticklabels(ax.get_xticklabels(),rotation=40,ha='right',fontsize=8)
-                ax.set_title(f'iSPE — …{sid[-8:]}', fontweight='bold')
+                ax.set_title(f'T_SPE — …{sid[-8:]}', fontweight='bold')
                 ax.set_ylabel('Contribution')
                 plt.tight_layout()
                 col.pyplot(fig)
