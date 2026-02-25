@@ -782,6 +782,7 @@ np.savez("tucker_results.npz",
         st.plotly_chart(fig3d, use_container_width=True)
 
     if df_out is not None:
+        new_cols            = [f"con_TSQR_{f}" for f in FEATURES]
         sec("Individual SPE contributions")
         s1 = st.selectbox("Sensor A", reliable_sensors, key='spe1',
                            format_func=lambda x: f"…{x[-8:]}")
