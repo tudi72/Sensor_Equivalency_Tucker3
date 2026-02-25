@@ -773,7 +773,7 @@ np.savez("tucker_results.npz",
         sec("3-D score space")
         fig3d = px.scatter_3d(
             df_out.reset_index().rename(columns={'index':'sensor'}),
-            x='LV1',y='LV2',z='LV3',color='DModX',
+            x='LV1',y='LV2',z='LV3',color='cluster',
             color_continuous_scale='RdBu_r',
             hover_name=df_out.index.str[-8:],
             title='Score space LV1×LV2×LV3 — coloured by DModX', height=520)
