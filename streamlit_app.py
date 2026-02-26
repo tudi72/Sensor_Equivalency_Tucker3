@@ -272,9 +272,19 @@ with st.sidebar:
     st.markdown("## Move & Chill")
     st.markdown("Smart seat sensors · Zürich · 2022")
     st.markdown("---")
-    csv_path = st.text_input("CSV path",
-                              value="resources/data/taz.view_moveandchill.csv")
+    csv_path = st.text_input("CSV path",value="resources/data/taz.view_moveandchill.csv")
     load_btn = st.button("▶ Load / Reload data", use_container_width=True)
+    st.markdown("""
+            <style>
+            input[type="password"] {
+                color: black !important;
+                -webkit-text-security: disc;
+            }
+            label[data-testid="stWidgetLabel"] p {
+                color: black !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("**Tucker3 settings**")
     rank_sensors  = st.slider("Rank — sensors",  1, 6, 3)
