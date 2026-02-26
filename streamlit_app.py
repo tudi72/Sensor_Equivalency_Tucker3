@@ -871,6 +871,7 @@ with tab_diag:
         sec("Sensor diagnostic map — T²R vs DModX")
 
         x, y  = df_out['TSQR'], df_out['DModX']
+        c     = df_out['cluster']
         v     = df_out.index.astype(str).to_numpy()
         x_max = max(x.max()*1.18, TSQR_THRESH*1.35)
         y_max = max(y.max()*1.18, DMODX_THRESH*1.35)
@@ -897,7 +898,7 @@ with tab_diag:
         ax.text(TSQR_THRESH+(x_max-TSQR_THRESH)*.5, DMODX_THRESH+(y_max-DMODX_THRESH)*.5,
                 '🔴 Critical Outlier\nHigh T² | High DModX', color='#c0392b',**lbl)
 
-        sc = ax.scatter(x, y, c=x, cmap='RdBu_r', alpha=0.85,
+        sc = ax.scatter(x, y, c=c, cmap='RdBu_r', alpha=0.85,
                         edgecolors='k', linewidths=0.5, zorder=5, s=90)
         for xi, yi, vi in zip(x, y, v):
             ax.text(xi+x_max*.01, yi+y_max*.01, vi[-8:],
