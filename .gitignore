@@ -1,4 +1,8 @@
 tucker3.py
 resources/* 
+
 map.html 
 src/*
+
+# Exception
+!resources/image_bench.avif
