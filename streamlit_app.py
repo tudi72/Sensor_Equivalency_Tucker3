@@ -779,24 +779,27 @@ np.savez("tucker_results.npz",
     plt.tight_layout()
     st.pyplot(fig)
     plt.close(fig)
-
+    # ========SVD ====================================================================
     sec("Factor matrix line plots")
-    colors = [mcolors.to_hex(cmap(v)) for v in [0.1, 0.5, 0.9]]  # blue, white, red
+    cmap = cm.get_cmap('tab10')
+    colors = [mcolors.to_hex(cmap(i)) for i in [1, 0, 2]]  # orange, blue, green
     labels = ['LV1', 'LV2', 'LV3']
     fig, axes = plt.subplots(3, 1, figsize=(12, 7))
-    axes[0].plot(A,'o-',color=colors,label=labels,lw=1.4,ms=5)
-    axes[0].set_xticks(range(len(sn))); axes[0].set_xticklabels(sn,rotation=40,ha='right',fontsize=7)
-    axes[0].set_ylabel('Scores'); axes[0].grid(True,alpha=.3)
-    axes[1].plot(B,'o-',color=colors,label=labels,lw=1.4,ms=5)
-    axes[1].set_xticks(range(len(FEATURES))); axes[1].set_xticklabels(FEATURES,rotation=20,ha='right',fontsize=8)
-    axes[1].set_ylabel('Var Loadings'); axes[1].grid(True,alpha=.3)
-    axes[2].plot(C,'o-',color=colors,label=labels,lw=1,ms=3)
-    axes[2].set_ylabel('Time Loading (day 1)'); axes[2].set_xlabel('Slot'); axes[2].grid(True,alpha=.3)
+    for i, (col, label) in enumerate(zip(colors, labels)):
+        axes[0].plot(A[:, i], 'o-', color=col, label=label, lw=1.4, ms=5)
+        axes[1].plot(B[:, i], 'o-', color=col, label=label, lw=1.4, ms=5)
+        axes[2].plot(C[:, i], 'o-', color=col, label=label, lw=1.0, ms=3)
+    axes[0].set_xticks(range(len(sn))); axes[0].set_xticklabels(sn, rotation=40, ha='right', fontsize=7)
+    axes[0].set_ylabel('Scores'); axes[0].grid(True, alpha=.3); axes[0].legend()
+    axes[1].set_xticks(range(len(FEATURES))); axes[1].set_xticklabels(FEATURES, rotation=20, ha='right', fontsize=8)
+    axes[1].set_ylabel('Var Loadings'); axes[1].grid(True, alpha=.3); axes[1].legend()
+    axes[2].set_ylabel('Time Loading (day 1)'); axes[2].set_xlabel('Slot')
+    axes[2].grid(True, alpha=.3); axes[2].legend()
     fig.suptitle('Tucker3 — Factor line plots', fontweight='bold', fontsize=13)
     plt.tight_layout()
     st.pyplot(fig)
     plt.close(fig)
-
+    # ===================================================================================
     lv_cols = [c for c in df_out.columns if c.startswith('LV')]
     if len(lv_cols) >= 3:
         sec("3-D score space")
