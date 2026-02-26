@@ -224,6 +224,8 @@ def run_pipeline(csv_path: str):
                 sensor_to_cluster=sensor_to_cluster)
 
 def build_week_data(df, week_start, missing_threshold=0.90):
+
+    all_sensors         = df['sensor_ID'].unique().tolist()
     week_end            = week_start + pd.Timedelta(days=7)
     wdf                 = df[(df['timestamp'] >= week_start) & (df['timestamp'] < week_end)].copy()
     wdf['day_idx']      = wdf['timestamp'].dt.date.apply(lambda d: (pd.Timestamp(d)-week_start).days)
@@ -260,14 +262,14 @@ def build_week_data(df, week_start, missing_threshold=0.90):
     return dict(full_index=full_index, n_slots=n_slots,
                 reliable_sensors=reliable, dropped_sensors=dropped,
                 miss_pct=miss_pct, sensor_dfs_raw=raw, sensor_dfs_filled=filled,
-                X=X, X_scaled=X_scaled, n_sensors=n)
+                X=X, X_scaled=X_scaled, n_sensors=n,all_sensors=all_sensors)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown("## 🪑 Move & Chill")
+    st.markdown("## Move & Chill")
     st.markdown("Smart seat sensors · Zürich · 2022")
     st.markdown("---")
     csv_path = st.text_input("CSV path",
@@ -285,7 +287,6 @@ with st.sidebar:
     st.markdown("**Diagnostic thresholds**")
     TSQR_THRESH  = st.slider("T²R threshold",     10, 600, 300,  step=10)
     DMODX_THRESH = st.slider("DModX threshold",    0.1, 10.0, 1.0, step=0.1)
-    CONF_LEVEL   = st.slider("Ellipse confidence", 0.80, 0.99, 0.95, step=0.01)
     st.markdown("---")
     _feat_ph   = st.empty()
     _sensor_ph = st.empty()
@@ -294,9 +295,18 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 # BANNER
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
+import base64 
+def img_to_b64(path):
+    with open(path, 'rb') as f:
+        return base64.b64encode(f.read()).decode()
+    
+img_b64 = img_to_b64('resources/image_bench.avif')
+
+st.markdown(f"""
 <div class="banner">
-  <div style="font-size:2.5rem">🪑</div>
+  <div style="font-size:2.5rem">
+    <img src="data:image/avif;base64,{img_b64}" style="height:60px; width:auto; border-radius:8px;">
+  </div>
   <div>
     <h1>Move & Chill — Sensor Dashboard</h1>
     <p>Tucker3 dimensionality reduction · Reliability &amp; robustness · Vulkanplatz &amp; Münsterhof</p>
@@ -373,6 +383,7 @@ if ("week_data" not in st.session_state or
 
 wd = st.session_state["week_data"]
 reliable_sensors  = wd["reliable_sensors"]
+all_sensors       = wd["all_sensors"]
 dropped_sensors   = wd["dropped_sensors"]
 miss_pct          = wd["miss_pct"]
 sensor_dfs_raw    = wd["sensor_dfs_raw"]
@@ -440,8 +451,8 @@ if run_tucker_btn:
 # KPIs
 # ══════════════════════════════════════════════════════════════════════════════
 kpi_row([
-    ("Total sensors",    len(reliable_sensors)+len(dropped_sensors),
-                         f"{len(dropped_sensors)} dropped"),
+    ("Total sensors",    len(all_sensors),
+                         f"{len(all_sensors) - len(dropped_sensors)} dropped"),
     ("Reliable sensors", len(reliable_sensors), "passed 90% threshold"),
     ("Analysis week",    str(chosen_start.date()), f"→ {str(chosen_end.date())}"),
     ("Time slots",       n_slots, "7 × 48"),
@@ -549,7 +560,7 @@ with tab_cov:
     for i, d in enumerate(dates_cov):
         if d.weekday() == 0:
             ax.axvline(i-.5, color='#1b4332', lw=1.2, ls='--', alpha=.5)
-            ax.text(i, -0.9, 'Mon', fontsize=5.5, ha='center', color='#1b4332')
+            # ax.text(i, -0.9, 'Mon', fontsize=5.5, ha='center', color='#1b4332')
 
     # ── Best week — red hue (only when different from chosen) ────────────────
     if not is_best_week:
@@ -568,10 +579,10 @@ with tab_cov:
         (chosen_start_idx-.5, -.5), 7, n_sens,
         boxstyle="round,pad=0.15", lw=2.5,
         edgecolor=ch_ec, facecolor=ch_fc, alpha=0.22, zorder=3))
-    ch_lbl = '★ best week (selected)' if is_best_week else '● selected week'
-    ax.text(chosen_start_idx+3, -.95, ch_lbl,
-            fontsize=7, ha='center', color=ch_ec,
-            fontweight='bold', va='top', zorder=4)
+    # ch_lbl = '★ best week (selected)' if is_best_week else '● selected week'
+    # ax.text(chosen_start_idx+3, -.95, ch_lbl,
+    #         fontsize=7, ha='center', color=ch_ec,
+    #         fontweight='bold', va='top', zorder=4)
 
     ax.set_yticks(range(n_sens))
     ax.set_yticklabels([s[-8:] for s in coverage.columns], fontsize=7)
