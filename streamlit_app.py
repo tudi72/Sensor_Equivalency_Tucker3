@@ -17,6 +17,8 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import chi2
 
+import matplotlib.cm as cm 
+import matplotlib.colors as mcolors
 # ══════════════════════════════════════════════════════════════════════════════
 # TUCKER3 — embedded from tucker3.py
 # ══════════════════════════════════════════════════════════════════════════════
@@ -362,14 +364,13 @@ for _, r in weeks_df.iterrows():
     star = " ★" if r['start_date'] == weeks_df.iloc[0]['start_date'] else ""
     week_labels.append(
         f"{r['start_date']} → {r['end_date']}  "
-        f"(score {r['score']:.2f}  |  avg {r['mean_coverage']*100:.0f}%  "
-        f"min {r['min_coverage']*100:.0f}%){star}"
+        f"| coverage {r['mean_coverage']*100:.0f}%  "
     )
 
 wc1, wc2 = st.columns([4, 1])
 with wc1:
     sel_week_label = st.selectbox(
-        "Mon→Sun week  (★ = auto best)",
+        "Mon → Sun week  (★ = auto best)",
         options=week_labels, index=0)
 sel_idx      = week_labels.index(sel_week_label)
 chosen_row   = weeks_df.iloc[sel_idx]
@@ -737,7 +738,11 @@ np.savez("tucker_results.npz",
     sn      = [s[-8:] for s in reliable_sensors]
 
     sec("Tucker3 factor matrices")
+
     ca, cb = st.columns(2)
+    cmap = cm.get_cmap('RdBu_r')
+    colors = [mcolors.to_hex(cmap(v)) for v in [0.1, 0.5, 0.9]]  # blue, white, red
+    labels = ['LV1', 'LV2', 'LV3']
     with ca:
         fig, ax = plt.subplots(figsize=(5,4))
         im = ax.imshow(A, cmap='RdBu_r', aspect='auto')
@@ -766,7 +771,7 @@ np.savez("tucker_results.npz",
     fig, ax = plt.subplots(figsize=(14, 3.5))
     pal = ['#2d6a4f','#e76f51','#457b9d','#e9c46a','#9b5de5','#f15bb5']
     for k in range(C.shape[1]):
-        ax.plot(full_index, C[:,k], lw=0.9, color=pal[k%len(pal)], label=f'TC{k+1}')
+        ax.plot(full_index, C[:,k],'o-', lw=0.9, color=pal[k%len(pal)], label=f'TC{k+1}')
     monday_vlines(ax, full_index)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%a %d'))
     ax.legend(fontsize=8); ax.grid(ls=':', alpha=0.3)
@@ -776,14 +781,16 @@ np.savez("tucker_results.npz",
     plt.close(fig)
 
     sec("Factor matrix line plots")
+    colors = [mcolors.to_hex(cmap(v)) for v in [0.1, 0.5, 0.9]]  # blue, white, red
+    labels = ['LV1', 'LV2', 'LV3']
     fig, axes = plt.subplots(3, 1, figsize=(12, 7))
-    axes[0].plot(A,'o-',lw=1.4,ms=5)
+    axes[0].plot(A,'o-',color=colors,label=labels,lw=1.4,ms=5)
     axes[0].set_xticks(range(len(sn))); axes[0].set_xticklabels(sn,rotation=40,ha='right',fontsize=7)
     axes[0].set_ylabel('Scores'); axes[0].grid(True,alpha=.3)
-    axes[1].plot(B,'o-',lw=1.4,ms=5)
+    axes[1].plot(B,'o-',color=colors,label=labels,lw=1.4,ms=5)
     axes[1].set_xticks(range(len(FEATURES))); axes[1].set_xticklabels(FEATURES,rotation=20,ha='right',fontsize=8)
     axes[1].set_ylabel('Var Loadings'); axes[1].grid(True,alpha=.3)
-    axes[2].plot(C,'o-',lw=1,ms=3)
+    axes[2].plot(C,'o-',color=colors,label=labels,lw=1,ms=3)
     axes[2].set_ylabel('Time Loading (day 1)'); axes[2].set_xlabel('Slot'); axes[2].grid(True,alpha=.3)
     fig.suptitle('Tucker3 — Factor line plots', fontweight='bold', fontsize=13)
     plt.tight_layout()
