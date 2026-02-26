@@ -296,11 +296,12 @@ with st.sidebar:
 # BANNER
 # ══════════════════════════════════════════════════════════════════════════════
 import base64 
+from pathlib import Path
 def img_to_b64(path):
     with open(path, 'rb') as f:
         return base64.b64encode(f.read()).decode()
     
-img_b64 = img_to_b64('resources/image_bench.avif')
+img_b64 = img_to_b64(Path(__file__).parent / 'resources' / 'image_bench.avif')
 
 st.markdown(f"""
 <div class="banner">
